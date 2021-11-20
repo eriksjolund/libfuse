@@ -40,7 +40,7 @@ libfuse = library('fuse3', libfuse_sources, version: meson.project_version(),
                   c_args: [ '-DFUSE_USE_VERSION=35',
                             '-DFUSERMOUNT_DIR="@0@"'.format(fusermount_path) ],
                   link_args: ['-Wl,--version-script,' + meson.current_source_dir()
-                              + '/fuse_versionscript' ])
+                              + '/fuse_versionscript', '-lsubid' ])
 
 pkg = import('pkgconfig')
 pkg.generate(libraries: [ libfuse, '-lpthread' ],

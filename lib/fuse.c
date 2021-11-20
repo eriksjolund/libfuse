@@ -40,6 +40,8 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 
+#include <shadow/subid.h>
+
 #define FUSE_NODE_SLAB 1
 
 #ifndef MAP_ANONYMOUS
@@ -1532,6 +1534,62 @@ out:
 	return err;
 }
 
+static uid_t map_uid(uid_t uid)
+{
+  struct subid_range *ranges;
+
+  if (uid == 0)
+    return getuid();
+
+  int num_ranges = get_subuid_ranges("testuser", &ranges);
+  if (!ranges) {
+    fprintf(stderr, "No subuid ranges found");
+    // TODO: fix. we should not return getuid() here.
+    return getuid();
+  }
+  uid_t uids_seen = 0;
+  {
+    size_t i;
+    for (i = 0; i < num_ranges; i++) {
+      if ( uids_seen + ranges[i].count >= uid) {
+	uid_t subuid = uids_seen + uid - 1 + ranges[i].start;
+	return subuid;
+      }
+      uids_seen += ranges[i].count;
+    }
+  }
+  // TODO: fix. we should not return getuid() here.
+  return getuid();
+}
+
+static gid_t map_gid(gid_t gid)
+{
+  struct subid_range *ranges;
+
+  if (gid == 0)
+    return getgid();
+
+  int num_ranges = get_subgid_ranges("testuser", &ranges);
+  if (!ranges) {
+    fprintf(stderr, "No subgid ranges found");
+    // TODO: fix. we should not return getgid() here.
+    return getgid();
+  }
+  gid_t gids_seen = 0;
+  {
+    size_t i;
+    for (i = 0; i < num_ranges; i++) {
+      if ( gids_seen + ranges[i].count >= gid) {
+	gid_t subgid = gids_seen + gid - 1 + ranges[i].start;
+	return subgid;
+      }
+      gids_seen += ranges[i].count;
+    }
+  }
+  // TODO: fix. we should not return getgid() here.
+  return getgid();
+}
+
 static void set_stat(struct fuse *f, fuse_ino_t nodeid, struct stat *stbuf)
 {
 	if (!f->conf.use_ino)
@@ -1539,6 +1597,12 @@ static void set_stat(struct fuse *f, fuse_ino_t nodeid, struct stat *stbuf)
 	if (f->conf.set_mode)
 		stbuf->st_mode = (stbuf->st_mode & S_IFMT) |
 				 (0777 & ~f->conf.umask);
+
+	if (f->conf.subid) {
+	  stbuf->st_uid = map_uid(stbuf->st_uid);
+	  stbuf->st_gid = map_gid(stbuf->st_gid);
+          return;
+	}
 	if (f->conf.set_uid)
 		stbuf->st_uid = f->conf.uid;
 	if (f->conf.set_gid)
@@ -4659,6 +4723,7 @@ static const struct fuse_opt fuse_lib_opts[] = {
 	FUSE_LIB_OPT("uid=%d",		      uid, 0),
 	FUSE_LIB_OPT("gid=",		      set_gid, 1),
 	FUSE_LIB_OPT("gid=%d",		      gid, 0),
+	FUSE_LIB_OPT("subid",		      subid, 1),
 	FUSE_LIB_OPT("entry_timeout=%lf",     entry_timeout, 0),
 	FUSE_LIB_OPT("attr_timeout=%lf",      attr_timeout, 0),
 	FUSE_LIB_OPT("ac_attr_timeout=%lf",   ac_attr_timeout, 0),

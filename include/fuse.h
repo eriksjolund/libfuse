@@ -109,6 +109,16 @@ struct fuse_config {
 	unsigned int uid;
 
 	/**
+	 * Map the value of st_uid the same way as Podman maps UIDs,
+         * i.e. into either the user's UID or one of the user's
+         * subordinate UIDs.
+	 * Map the value of st_gid the same way as Podman maps GIDs,
+         * i.e. into either the user's GID or one of the user's
+         * subordinate GIDs.
+	 */
+	int subid;
+
+	/**
 	 * If `set_mode` is non-zero, the any permissions bits set in
 	 * `umask` are unset in the st_mode attribute of each file.
 	 */
